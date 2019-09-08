@@ -7,7 +7,7 @@
  * File created:  2019/9/8  11:7:33.
  */
 
-namespace henrik\http-client\response;
+namespace henrik\http_client\response;
 
 
 use Psr\Http\Message\ResponseInterface;
@@ -15,7 +15,7 @@ use RuntimeException;
 
 /**
  * Class SapiEmitter
- * @package henrik\http-client\response
+ * @package henrik\http_client\response
  */
 class SapiEmitter implements EmitterInterface
 {

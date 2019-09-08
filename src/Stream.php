@@ -7,16 +7,16 @@
  * File created:  2019/8/11  6:35:49.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
-use henrik\http-client\exceptions\StreamException;
+use henrik\http_client\exceptions\StreamException;
 use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 
 /**
  * Class Stream
- * @package henrik\http-client
+ * @package henrik\http_client
  */
 class Stream implements StreamInterface
 {

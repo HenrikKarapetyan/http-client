@@ -7,7 +7,7 @@
  * File created:  2019/9/8  11:6:45.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
 use OutOfBoundsException;

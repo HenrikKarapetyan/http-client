@@ -7,13 +7,13 @@
  * File created:  2019/8/11  6:17:47.
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 use Exception;
 
 /**
  * Class HttpException
- * @package henrik\http-client\exceptions
+ * @package henrik\http_client\exceptions
  */
 class HttpException extends Exception
 {

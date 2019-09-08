@@ -7,12 +7,12 @@
  * File created:  2019/9/8  11:11:38.
  */
 
-namespace henrik\http-client\response;
+namespace henrik\http_client\response;
 
 
 
-use henrik\http-client\Response;
-use henrik\http-client\Stream;
+use henrik\http_client\Response;
+use henrik\http_client\Stream;
 use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;

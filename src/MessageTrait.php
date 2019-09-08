@@ -7,7 +7,7 @@
  * File created:  2019/9/8  10:44:53.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
 use InvalidArgumentException;

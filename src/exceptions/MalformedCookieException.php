@@ -14,7 +14,7 @@
  * Time: 4:39 PM
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 
 class MalformedCookieException extends HttpException

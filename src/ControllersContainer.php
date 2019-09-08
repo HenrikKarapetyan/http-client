@@ -14,7 +14,7 @@
  * Time: 9:35 PM
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 use sparrow\container\Container;
 use sparrow\di\Instantiator;
 use sparrow\core\Application;

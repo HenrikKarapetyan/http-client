@@ -7,7 +7,7 @@
  * File created:  2019/8/11  6:19:50.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
 use http\Exception\InvalidArgumentException;
@@ -15,7 +15,7 @@ use Psr\Http\Message\UriInterface;
 
 /**
  * Class Uri
- * @package henrik\http-client
+ * @package henrik\http_client
  */
 class Uri implements UriInterface
 {

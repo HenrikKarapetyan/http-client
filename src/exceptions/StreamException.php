@@ -7,12 +7,12 @@
  * File created:  2019/9/8  10:31:44.
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 
 /**
  * Class StreamException
- * @package henrik\http-client\exceptions
+ * @package henrik\http_client\exceptions
  */
 class StreamException extends HttpRuntimeException
 {

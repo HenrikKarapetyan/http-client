@@ -7,7 +7,7 @@
  * File created:  2019/8/11  6:32:1.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 use InvalidArgumentException;
 use Psr\Http\Message\ServerRequestInterface;

@@ -7,10 +7,10 @@
  * File created:  2019/9/8  11:12:53.
  */
 
-namespace henrik\http-client\response;
+namespace henrik\http_client\response;
 
 
-use henrik\http-client\Stream;
+use henrik\http_client\Stream;
 use Psr\Http\Message\StreamInterface;
 use UnexpectedValueException;
 

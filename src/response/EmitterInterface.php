@@ -7,14 +7,14 @@
  * File created:  2019/9/8  11:7:59.
  */
 
-namespace henrik\http-client\response;
+namespace henrik\http_client\response;
 
 
 use Psr\Http\Message\ResponseInterface;
 
 /**
  * Interface EmitterInterface
- * @package henrik\http-client\response
+ * @package henrik\http_client\response
  */
 interface EmitterInterface
 {

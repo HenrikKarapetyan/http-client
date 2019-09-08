@@ -7,12 +7,12 @@
  * File created:  2019/9/8  10:33:36.
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 
 /**
  * Class HttpRuntimeException
- * @package henrik\http-client\exceptions
+ * @package henrik\http_client\exceptions
  */
 class HttpRuntimeException extends \RuntimeException
 {

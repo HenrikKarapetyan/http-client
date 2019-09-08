@@ -7,12 +7,12 @@
  * File created:  2019/8/11  6:18:3.
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 
 /**
  * Class RouteParamNotFoundException
- * @package henrik\http-client\exceptions
+ * @package henrik\http_client\exceptions
  */
 class RouteParamNotFoundException extends HttpException
 {

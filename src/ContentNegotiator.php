@@ -7,14 +7,14 @@
  * File created:  2019/8/11  6:50:11.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
-use henrik\http-client\exceptions\HeadersAlreadySendedException;
+use henrik\http_client\exceptions\HeadersAlreadySendedException;
 
 /**
  * Class ContentNegotiator
- * @package henrik\http-client
+ * @package henrik\http_client
  */
 class ContentNegotiator
 {

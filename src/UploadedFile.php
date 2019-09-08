@@ -7,18 +7,18 @@
  * File created:  2019/8/11  6:36:25.
  */
 
-namespace henrik\http-client;
+namespace henrik\http_client;
 
 
-use henrik\http-client\exceptions\StreamException;
-use henrik\http-client\exceptions\UploadedFileException;
+use henrik\http_client\exceptions\StreamException;
+use henrik\http_client\exceptions\UploadedFileException;
 use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
 /**
  * Class UploadedFile
- * @package henrik\http-client
+ * @package henrik\http_client
  */
 class UploadedFile implements UploadedFileInterface
 {

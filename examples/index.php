@@ -10,7 +10,7 @@
 require "../vendor/autoload.php";
 
 
-$request = new \henrik\http-client\Request();
+$request = new \henrik\http_client\Request();
 
 
 var_dump($request->getMethod());

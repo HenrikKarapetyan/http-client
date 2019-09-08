@@ -14,7 +14,7 @@
  * Time: 9:58 AM
  */
 
-namespace henrik\http-client\exceptions;
+namespace henrik\http_client\exceptions;
 
 
 use Throwable;
