@@ -10,7 +10,7 @@
 namespace henrik\http_client;
 
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 
@@ -30,7 +30,7 @@ class Request implements RequestInterface
      * @param null|string $method HTTP method for the request, if any.
      * @param string|resource|StreamInterface $body Message body, if any.
      * @param array $headers Headers for the message, if any.
-     * @throws InvalidArgumentException for any invalid value.
+     * @throws InvalidArgumentsException for any invalid value.
      */
     public function __construct($uri = null, $method = null, $body = 'php://memory', array $headers = [])
     {

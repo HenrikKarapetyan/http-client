@@ -10,7 +10,7 @@
 namespace henrik\http_client;
 
 
-use http\Exception\InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\UriInterface;
 
 /**
@@ -74,12 +74,12 @@ class Uri implements UriInterface
 
     /**
      * @param string $uri
-     * @throws InvalidArgumentException on non-string $uri argument
+     * @throws InvalidArgumentsException on non-string $uri argument
      */
     public function __construct($uri = '')
     {
         if (!is_string($uri)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'URI passed to constructor must be a string; received "%s"',
                 (is_object($uri) ? get_class($uri) : gettype($uri))
             ));
@@ -236,7 +236,7 @@ class Uri implements UriInterface
     public function withPort($port)
     {
         if (!(is_integer($port) || (is_string($port) && is_numeric($port)))) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Invalid port "%s" specified; must be an integer or integer string',
                 (is_object($port) ? get_class($port) : gettype($port))
             ));
@@ -247,7 +247,7 @@ class Uri implements UriInterface
             return clone $this;
         }
         if ($port < 1 || $port > 65535) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Invalid port "%d" specified; must be a valid TCP/UDP port',
                 $port
             ));
@@ -263,17 +263,17 @@ class Uri implements UriInterface
     public function withPath($path)
     {
         if (!is_string($path)) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid path provided; must be a string'
             );
         }
         if (strpos($path, '?') !== false) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid path provided; must not contain a query string'
             );
         }
         if (strpos($path, '#') !== false) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid path provided; must not contain a URI fragment'
             );
         }
@@ -293,12 +293,12 @@ class Uri implements UriInterface
     public function withQuery($query)
     {
         if (!is_string($query)) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Query string must be a string'
             );
         }
         if (strpos($query, '#') !== false) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Query string must not include a URI fragment'
             );
         }
@@ -330,7 +330,7 @@ class Uri implements UriInterface
     {
         $parts = parse_url($uri);
         if (false === $parts) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'The source URI string appears to be malformed'
             );
         }
@@ -414,7 +414,7 @@ class Uri implements UriInterface
             return '';
         }
         if (!array_key_exists($scheme, $this->allowedSchemes)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Unsupported scheme "%s"; must be any empty string or in the set (%s)',
                 $scheme,
                 implode(', ', array_keys($this->allowedSchemes))

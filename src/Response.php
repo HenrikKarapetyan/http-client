@@ -10,7 +10,7 @@
 namespace henrik\http_client;
 
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
@@ -109,12 +109,12 @@ class Response implements ResponseInterface
      * @param $body string|resource|StreamInterface $stream Stream identifier and/or actual stream resource
      * @param int $status Status code for the response, if any.
      * @param array $headers Headers for the response, if any.
-     * @throws InvalidArgumentException on any invalid element.
+     * @throws InvalidArgumentsException on any invalid element.
      */
     public function __construct($body = 'php://memory', $status = 200, array $headers = [])
     {
         if (!is_string($body) && !is_resource($body) && !$body instanceof StreamInterface) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Stream must be a string stream resource identifier, '
                 . 'an actual stream resource, '
                 . 'or a Psr\Http\Message\StreamInterface implementation'
@@ -171,7 +171,7 @@ class Response implements ResponseInterface
      * Validate a status code.
      *
      * @param int|string $code
-     * @throws InvalidArgumentException on an invalid status code.
+     * @throws InvalidArgumentsException on an invalid status code.
      */
     private function validateStatus($code)
     {
@@ -180,7 +180,7 @@ class Response implements ResponseInterface
             || $code < 100
             || $code >= 600
         ) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Invalid status code "%s"; must be an integer between 100 and 599, inclusive',
                 (is_scalar($code) ? $code : gettype($code))
             ));
@@ -191,7 +191,7 @@ class Response implements ResponseInterface
      * Ensure header names and values are valid.
      *
      * @param array $headers
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentsException
      */
     private function assertHeaders(array $headers)
     {

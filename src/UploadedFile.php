@@ -10,9 +10,9 @@
 namespace henrik\http_client;
 
 
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use henrik\http_client\exceptions\StreamException;
 use henrik\http_client\exceptions\UploadedFileException;
-use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
 
@@ -75,37 +75,37 @@ class UploadedFile implements UploadedFileInterface
             $this->stream = new Stream($streamOrFile);
         }
 
-        if (! $this->file && ! $this->stream) {
-            if (! $streamOrFile instanceof StreamInterface) {
-                throw new InvalidArgumentException('Invalid stream or file provided for UploadedFile');
+        if (!$this->file && !$this->stream) {
+            if (!$streamOrFile instanceof StreamInterface) {
+                throw new InvalidArgumentsException('Invalid stream or file provided for UploadedFile');
             }
             $this->stream = $streamOrFile;
         }
 
-        if (! is_int($size)) {
-            throw new InvalidArgumentException('Invalid size provided for UploadedFile; must be an int');
+        if (!is_int($size)) {
+            throw new InvalidArgumentsException('Invalid size provided for UploadedFile; must be an int');
         }
         $this->size = $size;
 
-        if (! is_int($errorStatus)
+        if (!is_int($errorStatus)
             || 0 > $errorStatus
             || 8 < $errorStatus
         ) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid error status for UploadedFile; must be an UPLOAD_ERR_* constant'
             );
         }
         $this->error = $errorStatus;
 
-        if (null !== $clientFilename && ! is_string($clientFilename)) {
-            throw new InvalidArgumentException(
+        if (null !== $clientFilename && !is_string($clientFilename)) {
+            throw new InvalidArgumentsException(
                 'Invalid client filename provided for UploadedFile; must be null or a string'
             );
         }
         $this->clientFilename = $clientFilename;
 
-        if (null !== $clientMediaType && ! is_string($clientMediaType)) {
-            throw new InvalidArgumentException(
+        if (null !== $clientMediaType && !is_string($clientMediaType)) {
+            throw new InvalidArgumentsException(
                 'Invalid client media type provided for UploadedFile; must be null or a string'
             );
         }
@@ -131,24 +131,17 @@ class UploadedFile implements UploadedFileInterface
 
     /**
      * {@inheritdoc}
-     *
-     * @see http://php.net/is_uploaded_file
-     * @see http://php.net/move_uploaded_file
-     * @param string $targetPath Path to which to move the uploaded file.
-     * @throws \InvalidArgumentException if the $path specified is invalid.
-     * @throws \RuntimeException on any error during the move operation, or on
-     *     the second or subsequent call to the method.
      */
     public function moveTo($targetPath)
     {
-        if (! is_string($targetPath)) {
-            throw new InvalidArgumentException(
+        if (!is_string($targetPath)) {
+            throw new InvalidArgumentsException(
                 'Invalid path provided for move operation; must be a string'
             );
         }
 
         if (empty($targetPath)) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid path provided for move operation; must be a non-empty string'
             );
         }
@@ -159,7 +152,7 @@ class UploadedFile implements UploadedFileInterface
 
         $sapi = PHP_SAPI;
         switch (true) {
-            case (empty($sapi) || 0 === strpos($sapi, 'cli') || ! $this->file):
+            case (empty($sapi) || 0 === strpos($sapi, 'cli') || !$this->file):
                 // Non-SAPI environment, or no filename present
                 $this->writeFile($targetPath);
                 break;
@@ -227,7 +220,7 @@ class UploadedFile implements UploadedFileInterface
         }
 
         $this->stream->rewind();
-        while (! $this->stream->eof()) {
+        while (!$this->stream->eof()) {
             fwrite($handle, $this->stream->read(4096));
         }
 

@@ -10,14 +10,12 @@
 namespace henrik\http_client;
 
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\StreamInterface;
 
 /**
- * Trait implementing the various methods defined in
- * \Psr\Http\Message\MessageInterface.
- *
- * @link https://github.com/php-fig/http-message/tree/master/src/MessageInterface.php
+ * Trait MessageTrait
+ * @package henrik\http_client
  */
 trait MessageTrait
 {
@@ -125,14 +123,14 @@ trait MessageTrait
      * If the header does not appear in the message, this method MUST return an
      * empty array.
      *
-     * @param string $name Case-insensitive header field name.
+     * @param $header
      * @return string[] An array of string values as provided for the given
      *    header. If the header does not appear in the message, this method MUST
      *    return an empty array.
      */
     public function getHeader($header)
     {
-        if (! $this->hasHeader($header)) {
+        if (!$this->hasHeader($header)) {
             return [];
         }
 
@@ -158,7 +156,7 @@ trait MessageTrait
      * If the header does not appear in the message, this method MUST return
      * a null value.
      *
-     * @param string $name Case-insensitive header field name.
+     * @param $header string $name Case-insensitive header field name.
      * @return string|null A string of values as provided for the given header
      *    concatenated together using a comma. If the header does not appear in
      *    the message, this method MUST return a null value.
@@ -184,19 +182,19 @@ trait MessageTrait
      * immutability of the message, and MUST return an instance that has the
      * new and/or updated header and value.
      *
-     * @param string $name Case-insensitive header field name.
+     * @param $header string $name Case-insensitive header field name.
      * @param string|string[] $value Header value(s).
      * @return self
-     * @throws \InvalidArgumentException for invalid header names or values.
+     * @throws InvalidArgumentsException for invalid header names or values.
      */
     public function withHeader($header, $value)
     {
         if (is_string($value)) {
-            $value = [ $value ];
+            $value = [$value];
         }
 
-        if (! is_array($value) || ! $this->arrayContainsOnlyStrings($value)) {
-            throw new InvalidArgumentException(
+        if (!is_array($value) || !$this->arrayContainsOnlyStrings($value)) {
+            throw new InvalidArgumentsException(
                 'Invalid header value; must be a string or array of strings'
             );
         }
@@ -225,19 +223,19 @@ trait MessageTrait
      * immutability of the message, and MUST return an instance that has the
      * new header and/or value.
      *
-     * @param string $name Case-insensitive header field name to add.
+     * @param $header string $name Case-insensitive header field name to add.
      * @param string|string[] $value Header value(s).
      * @return self
-     * @throws \InvalidArgumentException for invalid header names or values.
+     * @throws InvalidArgumentsException for invalid header names or values.
      */
     public function withAddedHeader($header, $value)
     {
         if (is_string($value)) {
-            $value = [ $value ];
+            $value = [$value];
         }
 
-        if (! is_array($value) || ! $this->arrayContainsOnlyStrings($value)) {
-            throw new InvalidArgumentException(
+        if (!is_array($value) || !$this->arrayContainsOnlyStrings($value)) {
+            throw new InvalidArgumentsException(
                 'Invalid header value; must be a string or array of strings'
             );
         }
@@ -245,12 +243,12 @@ trait MessageTrait
         HeaderSecurity::assertValidName($header);
         self::assertValidHeaderValue($value);
 
-        if (! $this->hasHeader($header)) {
+        if (!$this->hasHeader($header)) {
             return $this->withHeader($header, $value);
         }
 
         $normalized = strtolower($header);
-        $header     = $this->headerNames[$normalized];
+        $header = $this->headerNames[$normalized];
 
         $new = clone $this;
         $new->headers[$header] = array_merge($this->headers[$header], $value);
@@ -266,17 +264,17 @@ trait MessageTrait
      * immutability of the message, and MUST return an instance that removes
      * the named header.
      *
-     * @param string $name Case-insensitive header field name to remove.
+     * @param $header string $name Case-insensitive header field name to remove.
      * @return self
      */
     public function withoutHeader($header)
     {
-        if (! $this->hasHeader($header)) {
+        if (!$this->hasHeader($header)) {
             return clone $this;
         }
 
         $normalized = strtolower($header);
-        $original   = $this->headerNames[$normalized];
+        $original = $this->headerNames[$normalized];
 
         $new = clone $this;
         unset($new->headers[$original], $new->headerNames[$normalized]);
@@ -304,7 +302,7 @@ trait MessageTrait
      *
      * @param StreamInterface $body Body.
      * @return self
-     * @throws \InvalidArgumentException When the body is not valid.
+     * @throws InvalidArgumentsException When the body is not valid.
      */
     public function withBody(StreamInterface $body)
     {
@@ -321,7 +319,7 @@ trait MessageTrait
      */
     private function arrayContainsOnlyStrings(array $array)
     {
-        return array_reduce($array, [ __CLASS__, 'filterStringValue'], true);
+        return array_reduce($array, [__CLASS__, 'filterStringValue'], true);
     }
 
     /**
@@ -336,23 +334,23 @@ trait MessageTrait
     {
         $headerNames = $headers = [];
         foreach ($originalHeaders as $header => $value) {
-            if (! is_string($header)) {
+            if (!is_string($header)) {
                 continue;
             }
 
-            if (! is_array($value) && ! is_string($value)) {
+            if (!is_array($value) && !is_string($value)) {
                 continue;
             }
 
-            if (! is_array($value)) {
-                $value = [ $value ];
+            if (!is_array($value)) {
+                $value = [$value];
             }
 
             $headerNames[strtolower($header)] = $header;
             $headers[$header] = $value;
         }
 
-        return [ $headerNames, $headers ];
+        return [$headerNames, $headers];
     }
 
     /**
@@ -366,7 +364,7 @@ trait MessageTrait
      */
     private static function filterStringValue($carry, $item)
     {
-        if (! is_string($item)) {
+        if (!is_string($item)) {
             return false;
         }
         return $carry;
@@ -377,7 +375,7 @@ trait MessageTrait
      *
      * @see http://tools.ietf.org/html/rfc7230#section-3.2
      * @param string[] $values
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentsException
      */
     private static function assertValidHeaderValue(array $values)
     {

@@ -10,8 +10,13 @@
 namespace henrik\http_client;
 
 
-use InvalidArgumentException;
 
+use henrik\http_client\exceptions\InvalidArgumentsException;
+
+/**
+ * Class HeaderSecurity
+ * @package henrik\http_client
+ */
 final class HeaderSecurity
 {
     /**
@@ -124,12 +129,12 @@ final class HeaderSecurity
      * Assert a header value is valid.
      *
      * @param string $value
-     * @throws InvalidArgumentException for invalid values
+     * @throws InvalidArgumentsException for invalid values
      */
     public static function assertValid($value)
     {
         if (! self::isValid($value)) {
-            throw new InvalidArgumentException('Invalid header value');
+            throw new InvalidArgumentsException('Invalid header value');
         }
     }
 
@@ -138,12 +143,12 @@ final class HeaderSecurity
      *
      * @see http://tools.ietf.org/html/rfc7230#section-3.2
      * @param mixed $name
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentsException
      */
     public static function assertValidName($name)
     {
         if (! preg_match('/^[a-zA-Z0-9\'`#$%&*+.^_|~!-]+$/', $name)) {
-            throw new InvalidArgumentException('Invalid header name');
+            throw new InvalidArgumentsException('Invalid header name');
         }
     }
 }

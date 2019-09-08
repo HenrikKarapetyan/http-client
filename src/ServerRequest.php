@@ -9,7 +9,7 @@
 
 namespace henrik\http_client;
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
@@ -69,7 +69,7 @@ class ServerRequest implements ServerRequestInterface
      * @param null|string $method HTTP method for the request, if any.
      * @param string|resource|StreamInterface $body Message body, if any.
      * @param array $headers Headers for the message, if any.
-     * @throws InvalidArgumentException for any invalid value.
+     * @throws InvalidArgumentsException for any invalid value.
      */
     public function __construct(
         array $serverParams = [],
@@ -261,7 +261,7 @@ class ServerRequest implements ServerRequestInterface
         }
 
         if (! is_string($stream) && ! is_resource($stream) && ! $stream instanceof StreamInterface) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Stream must be a string stream resource identifier, '
                 . 'an actual stream resource, '
                 . 'or a Psr\Http\Message\StreamInterface implementation'
@@ -279,7 +279,7 @@ class ServerRequest implements ServerRequestInterface
      * Recursively validate the structure in an uploaded files array.
      *
      * @param array $uploadedFiles
-     * @throws InvalidArgumentException if any leaf is not an UploadedFileInterface instance.
+     * @throws InvalidArgumentsException if any leaf is not an UploadedFileInterface instance.
      */
     private function validateUploadedFiles(array $uploadedFiles)
     {
@@ -290,7 +290,7 @@ class ServerRequest implements ServerRequestInterface
             }
 
             if (! $file instanceof UploadedFileInterface) {
-                throw new InvalidArgumentException('Invalid leaf in uploaded files structure');
+                throw new InvalidArgumentsException('Invalid leaf in uploaded files structure');
             }
         }
     }

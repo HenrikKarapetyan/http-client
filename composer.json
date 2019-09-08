@@ -1,6 +1,6 @@
 {
     "name": "henrik/http-client",
-    "description": "asd",
+    "description": "Http Client",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -11,8 +11,7 @@
     ],
     "minimum-stability": "dev",
     "require": {
-        "psr/http-client": "^1.0@dev",
-        "ext-http": "*"
+        "psr/http-client": "^1.0@dev"
     },
     "autoload": {
         "psr-4": {

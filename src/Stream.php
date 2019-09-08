@@ -10,8 +10,8 @@
 namespace henrik\http_client;
 
 
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use henrik\http_client\exceptions\StreamException;
-use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -34,7 +34,7 @@ class Stream implements StreamInterface
     /**
      * @param string|resource $stream
      * @param string $mode Mode with which to open stream
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentsException
      */
     public function __construct($stream, $mode = 'r')
     {
@@ -44,14 +44,14 @@ class Stream implements StreamInterface
             $this->resource = $stream;
         } elseif (is_string($stream)) {
             set_error_handler(function ($errno, $errstr) {
-                throw new InvalidArgumentException(
+                throw new InvalidArgumentsException(
                     'Invalid file provided for stream; must be a valid path with valid permissions'
                 );
             }, E_WARNING);
             $this->resource = fopen($stream, $mode);
             restore_error_handler();
         } else {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid stream provided; must be a string stream identifier or resource'
             );
         }
@@ -102,9 +102,9 @@ class Stream implements StreamInterface
      *
      * @param string|resource $resource
      * @param string $mode
-     * @throws InvalidArgumentException for stream identifier that cannot be
+     * @throws InvalidArgumentsException for stream identifier that cannot be
      *     cast to a resource
-     * @throws InvalidArgumentException for non-resource stream
+     * @throws InvalidArgumentsException for non-resource stream
      */
     public function attach($resource, $mode = 'r')
     {
@@ -118,11 +118,11 @@ class Stream implements StreamInterface
         }
 
         if ($error) {
-            throw new InvalidArgumentException('Invalid stream reference provided');
+            throw new InvalidArgumentsException('Invalid stream reference provided');
         }
 
         if (!is_resource($resource)) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid stream provided; must be a string stream identifier or resource'
             );
         }

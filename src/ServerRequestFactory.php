@@ -10,7 +10,7 @@
 namespace henrik\http_client;
 
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use stdClass;
@@ -47,7 +47,7 @@ abstract class ServerRequestFactory
      * @param array $cookies $_COOKIE superglobal
      * @param array $files $_FILES superglobal
      * @return ServerRequest
-     * @throws InvalidArgumentException for invalid file values
+     * @throws InvalidArgumentsException for invalid file values
      * @see fromServer()
      */
     public static function fromGlobals(
@@ -161,7 +161,7 @@ abstract class ServerRequestFactory
      *
      * @param array $files
      * @return array
-     * @throws InvalidArgumentException for unrecognized values
+     * @throws InvalidArgumentsException for unrecognized values
      */
     public static function normalizeFiles(array $files)
     {
@@ -182,7 +182,7 @@ abstract class ServerRequestFactory
                 continue;
             }
 
-            throw new InvalidArgumentException('Invalid value in files specification');
+            throw new InvalidArgumentsException('Invalid value in files specification');
         }
         return $normalized;
     }

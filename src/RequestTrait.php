@@ -9,7 +9,7 @@
 
 namespace henrik\http_client;
 
-use InvalidArgumentException;
+use henrik\http_client\exceptions\InvalidArgumentsException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UriInterface;
 
@@ -68,12 +68,12 @@ trait RequestTrait
      * @param null|string $method HTTP method for the request, if any.
      * @param string|resource|StreamInterface $body Message body, if any.
      * @param array $headers Headers for the message, if any.
-     * @throws InvalidArgumentException for any invalid value.
+     * @throws InvalidArgumentsException for any invalid value.
      */
     private function initialize($uri = null, $method = null, $body = 'php://memory', array $headers = [])
     {
         if (! $uri instanceof UriInterface && ! is_string($uri) && null !== $uri) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid URI provided; must be null, a string, or a Psr\Http\Message\UriInterface instance'
             );
         }
@@ -81,7 +81,7 @@ trait RequestTrait
         $this->validateMethod($method);
 
         if (! is_string($body) && ! is_resource($body) && ! $body instanceof StreamInterface) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Body must be a string stream resource identifier, '
                 . 'an actual stream resource, '
                 . 'or a Psr\Http\Message\StreamInterface implementation'
@@ -155,12 +155,12 @@ trait RequestTrait
      *     request-target forms allowed in request messages)
      * @param mixed $requestTarget
      * @return self
-     * @throws InvalidArgumentException if the request target is invalid.
+     * @throws InvalidArgumentsException if the request target is invalid.
      */
     public function withRequestTarget($requestTarget)
     {
         if (preg_match('#\s#', $requestTarget)) {
-            throw new InvalidArgumentException(
+            throw new InvalidArgumentsException(
                 'Invalid request target provided; cannot contain whitespace'
             );
         }
@@ -193,7 +193,7 @@ trait RequestTrait
      *
      * @param string $method Case-insensitive method.
      * @return self
-     * @throws InvalidArgumentException for invalid HTTP methods.
+     * @throws InvalidArgumentsException for invalid HTTP methods.
      */
     public function withMethod($method)
     {
@@ -267,10 +267,8 @@ trait RequestTrait
     }
 
     /**
-     * Validate the HTTP method
-     *
-     * @param null|string $method
-     * @throws InvalidArgumentException on invalid HTTP method.
+     * @param $method
+     * @return bool
      */
     private function validateMethod($method)
     {
@@ -279,7 +277,7 @@ trait RequestTrait
         }
 
         if (! is_string($method)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Unsupported HTTP method; must be a string, received %s',
                 (is_object($method) ? get_class($method) : gettype($method))
             ));
@@ -288,11 +286,12 @@ trait RequestTrait
         $method = strtoupper($method);
 
         if (! in_array($method, $this->validMethods, true)) {
-            throw new InvalidArgumentException(sprintf(
+            throw new InvalidArgumentsException(sprintf(
                 'Unsupported HTTP method "%s" provided',
                 $method
             ));
         }
+        return;
     }
 
     /**
@@ -311,7 +310,7 @@ trait RequestTrait
      * Ensure header names and values are valid.
      *
      * @param array $headers
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentsException
      */
     private function assertHeaders(array $headers)
     {
