@@ -1,0 +1,22 @@
+{
+    "name": "henrik/http-client",
+    "description": "asd",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Henrik Karapetyan",
+            "email": "henrikkarapetyan@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "psr/http-client": "^1.0@dev",
+        "ext-http": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "henrik\\http-client\\": "src/"
+        }
+    }
+}
