@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-4": {
-            "henrik\\http-client\\": "src/"
+            "henrik\\http_client\\": "src/"
         }
     }
 }
