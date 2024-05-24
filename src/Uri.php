@@ -1,516 +1,558 @@
 <?php
-/**
- * Copyright (c)  2016
- * Author  Henrik Karapetyan
- * Email:  henrikkarapetyan@gmail.com
- * Country: Armenia
- * File created:  2019/8/11  6:19:50.
- */
 
-namespace henrik\http_client;
+declare(strict_types=1);
 
+namespace Henrik\HttpClient;
 
-use henrik\http_client\exceptions\InvalidArgumentsException;
+use InvalidArgumentException;
 use Psr\Http\Message\UriInterface;
 
 /**
- * Class Uri
- * @package henrik\http_client
+ * @SuppressWarnings(PHPMD)
  */
-class Uri implements UriInterface
+final class Uri implements UriInterface
 {
     /**
-     * Sub-delimiters used in query strings and fragments.
-     *
-     * @const string
+     * Standard ports and supported schemes.
      */
-    const CHAR_SUB_DELIMITERS = '!\$&\'\(\)\*\+,;=';
-    /**
-     * Unreserved characters used in paths, query strings, and fragments.
-     *
-     * @const string
-     */
-    const CHAR_UNRESERVED = 'a-zA-Z0-9_\-\.~';
+    private const SCHEMES = [80 => 'http', 443 => 'https'];
 
-    /**
-     * @var
-     */
-    private $scheme;
-    /**
-     * @var
-     */
-    private $host;
-    /**
-     * @var
-     */
-    private $port;
-    /**
-     * @var
-     */
-    private $path;
-    /**
-     * @var
-     */
-    private $fragment;
-    /**
-     * @var
-     */
-    private $query;
-    /**
-     * @var
-     */
-    private $uriString;
     /**
      * @var string
      */
-    private $userInfo;
+    private string $scheme = '';
+
     /**
-     * @var array
+     * @var string
      */
-    private $allowedSchemes = [
-        'http' => 80,
-        'https' => 443,
-    ];
+    private string $userInfo = '';
+
+    /**
+     * @var string
+     */
+    private string $host = '';
+
+    /**
+     * @var int|null
+     */
+    private ?int $port = null;
+
+    /**
+     * @var string
+     */
+    private string $path = '';
+
+    /**
+     * @var string
+     */
+    private string $query = '';
+
+    /**
+     * @var string
+     */
+    private string $fragment = '';
+
+    /**
+     * @var string|null
+     */
+    private ?string $cache = null;
 
     /**
      * @param string $uri
-     * @throws InvalidArgumentsException on non-string $uri argument
      */
-    public function __construct($uri = '')
+    public function __construct(string $uri = '')
     {
-        if (!is_string($uri)) {
-            throw new InvalidArgumentsException(sprintf(
-                'URI passed to constructor must be a string; received "%s"',
-                (is_object($uri) ? get_class($uri) : gettype($uri))
-            ));
+        if ($uri === '') {
+            return;
         }
-        if (!empty($uri)) {
-            $this->parseUri($uri);
+
+        if (($uri = parse_url($uri)) === false) {
+            throw new InvalidArgumentException('The source URI string appears to be malformed.');
         }
+
+        $this->scheme   = isset($uri['scheme']) ? $this->normalizeScheme($uri['scheme']) : '';
+        $this->userInfo = isset($uri['user']) ? $this->normalizeUserInfo($uri['user'], $uri['pass'] ?? null) : '';
+        $this->host     = isset($uri['host']) ? $this->normalizeHost($uri['host']) : '';
+        $this->port     = isset($uri['port']) ? $this->normalizePort($uri['port']) : null;
+        $this->path     = isset($uri['path']) ? $this->normalizePath($uri['path']) : '';
+        $this->query    = isset($uri['query']) ? $this->normalizeQuery($uri['query']) : '';
+        $this->fragment = isset($uri['fragment']) ? $this->normalizeFragment($uri['fragment']) : '';
     }
 
     /**
-     * {@inheritdoc}
+     * When cloning resets the URI string representation cache.
      */
-    public function __toString()
+    public function __clone()
     {
-        if (null !== $this->uriString) {
-            return $this->uriString;
+        $this->cache = null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function __toString(): string
+    {
+        if (is_string($this->cache)) {
+            return $this->cache;
         }
-        $this->uriString = $this->createUriString(
-            $this->scheme,
-            $this->getAuthority(),
-            $this->getPath(), // Absolute URIs should use a "/" for an empty path
-            $this->query,
-            $this->fragment
-        );
-        return $this->uriString;
+
+        $this->cache = '';
+
+        if ($this->scheme !== '') {
+            $this->cache .= $this->scheme . ':';
+        }
+
+        if (($authority = $this->getAuthority()) !== '') {
+            $this->cache .= '//' . $authority;
+        }
+
+        if ($this->path !== '') {
+            if ($authority === '') {
+                // If the path is starting with more than one "/" and no authority is present,
+                // the starting slashes MUST be reduced to one.
+                $this->cache .= $this->path[0] === '/' ? '/' . ltrim($this->path, '/') : $this->path;
+            } else {
+                // If the path is rootless and an authority is present, the path MUST be prefixed by "/".
+                $this->cache .= $this->path[0] === '/' ? $this->path : '/' . $this->path;
+            }
+        }
+
+        if ($this->query !== '') {
+            $this->cache .= '?' . $this->query;
+        }
+
+        if ($this->fragment !== '') {
+            $this->cache .= '#' . $this->fragment;
+        }
+
+        return $this->cache;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getScheme()
+    public function getScheme(): string
     {
-        return empty($this->scheme) ? '' : $this->scheme;
+        return $this->scheme;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getAuthority()
+    public function getAuthority(): string
     {
-        if (empty($this->host)) {
+        $authority = $this->host;
+
+        if ($authority === '') {
             return '';
         }
-        $authority = $this->host;
-        if (!empty($this->userInfo)) {
+
+        if ($this->userInfo !== '') {
             $authority = $this->userInfo . '@' . $authority;
         }
-        if ($this->isNonStandardPort($this->scheme, $this->host, $this->port)) {
+
+        if ($this->isNotStandardPort()) {
             $authority .= ':' . $this->port;
         }
+
         return $authority;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getUserInfo()
+    public function getUserInfo(): string
     {
-        return !empty($this->userInfo) ? $this->userInfo : "";
+        return $this->userInfo;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getHost()
+    public function getHost(): string
     {
-        return !empty($this->host) ? $this->host : "";
+        return $this->host;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getPort()
+    public function getPort(): ?int
     {
-        return $this->isNonStandardPort($this->scheme, $this->host, $this->port)
-            ? $this->port
-            : null;
+        return $this->isNotStandardPort() ? $this->port : null;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getPath()
+    public function getPath(): string
     {
-        return !empty($this->path) ? $this->path : "";
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getQuery()
-    {
-        return !empty($this->query) ? $this->query : "";
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getFragment()
-    {
-        return !empty($this->fragment) ? $this->fragment : "";
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function withScheme($scheme)
-    {
-        $scheme = $this->filterScheme($scheme);
-        if ($scheme === $this->scheme) {
-            // Do nothing if no change was made.
-            return clone $this;
+        if ($this->path === '' || $this->path === '/') {
+            return $this->path;
         }
-        $new = clone $this;
-        $new->scheme = $scheme;
+
+        if ($this->path[0] !== '/') {
+            // If the path is rootless and an authority is present, the path MUST be prefixed by "/".
+            return $this->host === '' ? $this->path : '/' . $this->path;
+        }
+
+        return '/' . ltrim($this->path, '/');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getQuery(): string
+    {
+        return $this->query;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getFragment(): string
+    {
+        return $this->fragment;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function withScheme($scheme): UriInterface
+    {
+        $this->checkStringType($scheme, 'scheme', __METHOD__);
+        $schema = $this->normalizeScheme($scheme);
+
+        if ($schema === $this->scheme) {
+            return $this;
+        }
+
+        $new         = clone $this;
+        $new->scheme = $schema;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withUserInfo($user, $password = null)
+    public function withUserInfo($user, $password = null): UriInterface
     {
-        $info = $user;
-        if ($password) {
-            $info .= ':' . $password;
+        $this->checkStringType($user, 'user', __METHOD__);
+
+        if ($password !== null) {
+            $this->checkStringType($password, 'or null password', __METHOD__);
         }
-        if ($info === $this->userInfo) {
-            // Do nothing if no change was made.
-            return clone $this;
+
+        $userInfo = $this->normalizeUserInfo($user, $password);
+
+        if ($userInfo === $this->userInfo) {
+            return $this;
         }
-        $new = clone $this;
-        $new->userInfo = $info;
+
+        $new           = clone $this;
+        $new->userInfo = $userInfo;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withHost($host)
+    public function withHost($host): UriInterface
     {
+        $this->checkStringType($host, 'host', __METHOD__);
+        $host = $this->normalizeHost($host);
+
         if ($host === $this->host) {
-            // Do nothing if no change was made.
-            return clone $this;
+            return $this;
         }
-        $new = clone $this;
+
+        $new       = clone $this;
         $new->host = $host;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withPort($port)
+    public function withPort($port): UriInterface
     {
-        if (!(is_integer($port) || (is_string($port) && is_numeric($port)))) {
-            throw new InvalidArgumentsException(sprintf(
-                'Invalid port "%s" specified; must be an integer or integer string',
-                (is_object($port) ? get_class($port) : gettype($port))
-            ));
-        }
-        $port = (int)$port;
+        $port = $this->normalizePort($port);
+
         if ($port === $this->port) {
-            // Do nothing if no change was made.
-            return clone $this;
+            return $this;
         }
-        if ($port < 1 || $port > 65535) {
-            throw new InvalidArgumentsException(sprintf(
-                'Invalid port "%d" specified; must be a valid TCP/UDP port',
-                $port
-            ));
-        }
-        $new = clone $this;
+
+        $new       = clone $this;
         $new->port = $port;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withPath($path)
+    public function withPath($path): UriInterface
     {
-        if (!is_string($path)) {
-            throw new InvalidArgumentsException(
-                'Invalid path provided; must be a string'
-            );
-        }
-        if (strpos($path, '?') !== false) {
-            throw new InvalidArgumentsException(
-                'Invalid path provided; must not contain a query string'
-            );
-        }
-        if (strpos($path, '#') !== false) {
-            throw new InvalidArgumentsException(
-                'Invalid path provided; must not contain a URI fragment'
-            );
-        }
-        $path = $this->filterPath($path);
+        $this->checkStringType($path, 'path', __METHOD__);
+        $path = $this->normalizePath($path);
+
         if ($path === $this->path) {
-            // Do nothing if no change was made.
-            return clone $this;
+            return $this;
         }
-        $new = clone $this;
+
+        $new       = clone $this;
         $new->path = $path;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withQuery($query)
+    public function withQuery($query): UriInterface
     {
-        if (!is_string($query)) {
-            throw new InvalidArgumentsException(
-                'Query string must be a string'
-            );
-        }
-        if (strpos($query, '#') !== false) {
-            throw new InvalidArgumentsException(
-                'Query string must not include a URI fragment'
-            );
-        }
-        $query = $this->filterQuery($query);
+        $this->checkStringType($query, 'query string', __METHOD__);
+        $query = $this->normalizeQuery($query);
+
         if ($query === $this->query) {
-            // Do nothing if no change was made.
-            return clone $this;
+            return $this;
         }
-        $new = clone $this;
+
+        $new        = clone $this;
         $new->query = $query;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withFragment($fragment)
+    public function withFragment($fragment): UriInterface
     {
-        $this->fragment = $fragment;
-        return $this;
-    }
+        $this->checkStringType($fragment, 'URI fragment', __METHOD__);
+        $fragment = $this->normalizeFragment($fragment);
 
+        if ($fragment === $this->fragment) {
+            return $this;
+        }
 
-    /**
-     * Parse a URI into its parts, and set the properties
-     * @param $uri
-     */
-    private function parseUri($uri)
-    {
-        $parts = parse_url($uri);
-        if (false === $parts) {
-            throw new InvalidArgumentsException(
-                'The source URI string appears to be malformed'
-            );
-        }
-        $this->scheme = isset($parts['scheme']) ? $this->filterScheme($parts['scheme']) : '';
-        $this->userInfo = isset($parts['user']) ? $parts['user'] : '';
-        $this->host = isset($parts['host']) ? $parts['host'] : '';
-        $this->port = isset($parts['port']) ? $parts['port'] : null;
-        $this->path = isset($parts['path']) ? $this->filterPath($parts['path']) : '';
-        $this->query = isset($parts['query']) ? $this->filterQuery($parts['query']) : '';
-        $this->fragment = isset($parts['fragment']) ? $this->filterFragment($parts['fragment']) : '';
-        if (isset($parts['pass'])) {
-            $this->userInfo .= ':' . $parts['pass'];
-        }
+        $new           = clone $this;
+        $new->fragment = $fragment;
+
+        return $new;
     }
 
     /**
-     * Create a URI string from its various parts
+     * Normalize the scheme component of the URI.
      *
      * @param string $scheme
-     * @param string $authority
-     * @param string $path
-     * @param string $query
-     * @param string $fragment
+     *
+     * @throws InvalidArgumentException for invalid or unsupported schemes
+     *
      * @return string
      */
-    private function createUriString($scheme, $authority, $path, $query, $fragment)
+    private function normalizeScheme(string $scheme): string
     {
-        $uri = '';
-        if (!empty($scheme)) {
-            $uri .= sprintf('%s://', $scheme);
-        }
-        if (!empty($authority)) {
-            $uri .= $authority;
-        }
-        if ($path) {
-            if (empty($path) || '/' !== substr($path, 0, 1)) {
-                $path = '/' . $path;
-            }
-            $uri .= $path;
-        }
-        if ($query) {
-            $uri .= sprintf('?%s', $query);
-        }
-        if ($fragment) {
-            $uri .= sprintf('#%s', $fragment);
-        }
-        return $uri;
-    }
-
-    /**
-     * Is a given port non-standard for the current scheme?
-     *
-     * @param string $scheme
-     * @param string $host
-     * @param int $port
-     * @return bool
-     */
-    private function isNonStandardPort($scheme, $host, $port)
-    {
-        if (!$scheme) {
-            return true;
-        }
-        if (!$host || !$port) {
-            return false;
-        }
-        return !isset($this->allowedSchemes[$scheme]) || $port !== $this->allowedSchemes[$scheme];
-    }
-
-    /**
-     * Filters the scheme to ensure it is a valid scheme.
-     *
-     * @param string $scheme Scheme name.
-     *
-     * @return string Filtered scheme.
-     */
-    private function filterScheme($scheme)
-    {
-        $scheme = strtolower($scheme);
-        $scheme = preg_replace('#:(//)?$#', '', $scheme);
-        if (empty($scheme)) {
+        if (!$scheme = preg_replace('#:(//)?$#', '', strtolower($scheme))) {
             return '';
         }
-        if (!array_key_exists($scheme, $this->allowedSchemes)) {
-            throw new InvalidArgumentsException(sprintf(
-                'Unsupported scheme "%s"; must be any empty string or in the set (%s)',
+
+        if (!in_array($scheme, self::SCHEMES, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Unsupported scheme "%s". It must be an empty string or any of "%s".',
                 $scheme,
-                implode(', ', array_keys($this->allowedSchemes))
+                implode('", "', self::SCHEMES)
             ));
         }
+
         return $scheme;
     }
 
     /**
-     * Filters the path of a URI to ensure it is properly encoded.
+     * Normalize the user information component of the URI.
+     *
+     * @param string      $user
+     * @param string|null $pass
+     *
+     * @return string
+     */
+    private function normalizeUserInfo(string $user, ?string $pass = null): string
+    {
+        if ($user === '') {
+            return '';
+        }
+
+        $pattern  = '/(?:[^%a-zA-Z0-9_\-\.~\pL!\$&\'\(\)\*\+,;=]+|%(?![A-Fa-f0-9]{2}))/u';
+        $userInfo = $this->encode($user, $pattern);
+
+        if ($pass !== null) {
+            $userInfo .= ':' . $this->encode($pass, $pattern);
+        }
+
+        return $userInfo;
+    }
+
+    /**
+     * Normalize the host component of the URI.
+     *
+     * @param string $host
+     *
+     * @return string
+     */
+    private function normalizeHost(string $host): string
+    {
+        return strtr($host, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz');
+    }
+
+    /**
+     * Normalize the port component of the URI.
+     *
+     * @param mixed $port
+     *
+     * @throws InvalidArgumentException for invalid ports
+     *
+     * @return int|null
+     */
+    private function normalizePort($port): ?int
+    {
+        if ($port === null) {
+            return null;
+        }
+
+        if (!is_numeric($port) || is_float($port)) {
+            throw new InvalidArgumentException(sprintf(
+                'Invalid port "%s" specified. It must be an integer, an integer string, or null.',
+                is_object($port) ? get_class($port) : gettype($port)
+            ));
+        }
+
+        $port = (int) $port;
+
+        if ($port < 1 || $port > 65535) {
+            throw new InvalidArgumentException(sprintf(
+                'Invalid port "%d" specified. It must be a valid TCP/UDP port in range 1..65535.',
+                $port
+            ));
+        }
+
+        return $port;
+    }
+
+    /**
+     * Normalize the path component of the URI.
      *
      * @param string $path
+     *
+     * @throws InvalidArgumentException for invalid paths
+     *
      * @return string
      */
-    private function filterPath($path)
+    private function normalizePath(string $path): string
     {
-        return preg_replace_callback(
-            '/(?:[^' . self::CHAR_UNRESERVED . ':@&=\+\$,\/;%]+|%(?![A-Fa-f0-9]{2}))/',
-            [$this, 'urlEncodeChar'],
-            $path
-        );
+        if ($path === '' || $path === '/') {
+            return $path;
+        }
+
+        return $this->encode($path, '/(?:[^a-zA-Z0-9_\-\.~!\$&\'\(\)\*\+,;=%:@\/]++|%(?![A-Fa-f0-9]{2}))/');
     }
 
     /**
-     * Filter a query string to ensure it is propertly encoded.
-     *
-     * Ensures that the values in the query string are properly urlencoded.
+     * Normalize the query string of the URI.
      *
      * @param string $query
+     *
+     * @throws InvalidArgumentException for invalid query strings
+     *
      * @return string
      */
-    private function filterQuery($query)
+    private function normalizeQuery(string $query): string
     {
-        if (!empty($query) && strpos($query, '?') === 0) {
-            $query = substr($query, 1);
+        if ($query === '' || $query === '?') {
+            return '';
         }
-        $parts = explode('&', $query);
-        foreach ($parts as $index => $part) {
-            list($key, $value) = $this->splitQueryValue($part);
-            if ($value === null) {
-                $parts[$index] = $this->filterQueryOrFragment($key);
-                continue;
-            }
-            $parts[$index] = sprintf(
-                '%s=%s',
-                $this->filterQueryOrFragment($key),
-                $this->filterQueryOrFragment($value)
-            );
+
+        if ($query[0] === '?') {
+            $query = ltrim($query, '?');
         }
-        return implode('&', $parts);
+
+        return $this->encode($query, '/(?:[^a-zA-Z0-9_\-\.~!\$&\'\(\)\*\+,;=%:@\/\?]++|%(?![A-Fa-f0-9]{2}))/');
     }
 
     /**
-     * Split a query value into a key/value tuple.
+     * Normalize the fragment component of the URI.
      *
-     * @param string $value
-     * @return array A value with exactly two elements, key and value
+     * @param string $fragment
+     *
+     * @return string
      */
-    private function splitQueryValue($value)
+    private function normalizeFragment(string $fragment): string
     {
-        $data = explode('=', $value, 2);
-        if (1 === count($data)) {
-            $data[] = null;
+        if ($fragment === '' || $fragment === '#') {
+            return '';
         }
-        return $data;
+
+        if ($fragment[0] === '#') {
+            $fragment = ltrim($fragment, '#');
+        }
+
+        return $this->encode($fragment, '/(?:[^a-zA-Z0-9_\-\.~!\$&\'\(\)\*\+,;=%:@\/\?]++|%(?![A-Fa-f0-9]{2}))/');
     }
 
     /**
-     * Filter a query string key or value, or a fragment.
+     * Percent encodes all reserved characters in the provided string according to the provided pattern.
+     * Characters that are already encoded as a percentage will not be re-encoded.
      *
-     * @param string $value
+     * @see https://tools.ietf.org/html/rfc3986
+     *
+     * @param string $string
+     * @param string $pattern
+     *
      * @return string
      */
-    private function filterQueryOrFragment($value)
+    private function encode(string $string, string $pattern): string
     {
-        return preg_replace_callback(
-            '/(?:[^' . self::CHAR_UNRESERVED . self::CHAR_SUB_DELIMITERS . '%:@\/\?]+|%(?![A-Fa-f0-9]{2}))/',
-            [$this, 'urlEncodeChar'],
-            $value
+        return (string) preg_replace_callback(
+            $pattern,
+            static fn (array $matches) => rawurlencode($matches[0]),
+            $string,
         );
     }
 
     /**
-     * Filter a fragment value to ensure it is properly encoded.
+     * Is this a non-standard port for the scheme.
      *
-     * @param null|string $fragment
-     * @return string
+     * @return bool
      */
-    private function filterFragment($fragment)
+    private function isNotStandardPort(): bool
     {
-        if (null === $fragment) {
-            $fragment = '';
+        if ($this->port === null) {
+            return false;
         }
-        if (!empty($fragment) && strpos($fragment, '#') === 0) {
-            $fragment = substr($fragment, 1);
+
+        return !isset(self::SCHEMES[$this->port]) || $this->scheme !== self::SCHEMES[$this->port];
+    }
+
+    /**
+     * Checks whether the value being passed is a string.
+     *
+     * @param mixed  $value
+     * @param string $phrase
+     * @param string $method
+     *
+     * @throws InvalidArgumentException for not string types
+     */
+    private function checkStringType($value, string $phrase, string $method): void
+    {
+        if (!is_string($value)) {
+            throw new InvalidArgumentException(sprintf(
+                '"%s" method expects a string type %s. "%s" received.',
+                $method,
+                $phrase,
+                is_object($value) ? get_class($value) : gettype($value)
+            ));
         }
-        return $this->filterQueryOrFragment($fragment);
     }
 }

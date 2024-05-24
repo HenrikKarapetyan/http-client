@@ -1,229 +1,232 @@
 <?php
-/**
- * Copyright (c)  2016
- * Author  Henrik Karapetyan
- * Email:  henrikkarapetyan@gmail.com
- * Country: Armenia
- * File created:  2019/8/11  6:36:25.
- */
 
-namespace henrik\http_client;
+declare(strict_types=1);
 
+namespace Henrik\HttpClient;
 
-use henrik\http_client\exceptions\InvalidArgumentsException;
-use henrik\http_client\exceptions\StreamException;
-use henrik\http_client\exceptions\UploadedFileException;
+use InvalidArgumentException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use RuntimeException;
 
-/**
- * Class UploadedFile
- * @package henrik\http_client
- */
-class UploadedFile implements UploadedFileInterface
+final class UploadedFile implements UploadedFileInterface
 {
-
     /**
-     * @var string
+     * @const array
+     *
+     * @see https://www.php.net/manual/en/features.file-upload.errors.php
      */
-    private $clientFilename;
+    private const ERRORS = [
+        UPLOAD_ERR_OK        => 'There is no error, the file uploaded with success.',
+        UPLOAD_ERR_INI_SIZE  => 'The uploaded file exceeds the upload_max_filesize directive in php.ini.',
+        UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the MAX_FILE_SIZE directive'
+            . ' that was specified in the HTML form.',
+        UPLOAD_ERR_PARTIAL    => 'The uploaded file was only partially uploaded.',
+        UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
+        UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder.',
+        UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+        UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the file upload.',
+    ];
 
     /**
-     * @var string
-     */
-    private $clientMediaType;
-
-    /**
-     * @var int
-     */
-    private $error;
-
-    /**
-     * @var null|string
-     */
-    private $file;
-
-    /**
-     * @var bool
-     */
-    private $moved = false;
-
-    /**
-     * @var int
-     */
-    private $size;
-
-    /**
-     * @var null|StreamInterface
+     * @var StreamInterface
      */
     private $stream;
 
     /**
-     * UploadedFile constructor.
-     * @param $streamOrFile
-     * @param $size
-     * @param $errorStatus
-     * @param null $clientFilename
-     * @param null $clientMediaType
+     * @var string|null
      */
-    public function __construct($streamOrFile, $size, $errorStatus, $clientFilename = null, $clientMediaType = null)
-    {
-        if (is_string($streamOrFile)) {
-            $this->file = $streamOrFile;
-        }
-        if (is_resource($streamOrFile)) {
-            $this->stream = new Stream($streamOrFile);
-        }
+    private ?string $file = null;
 
-        if (!$this->file && !$this->stream) {
-            if (!$streamOrFile instanceof StreamInterface) {
-                throw new InvalidArgumentsException('Invalid stream or file provided for UploadedFile');
-            }
-            $this->stream = $streamOrFile;
-        }
+    /**
+     * @var int
+     */
+    private int $size;
 
-        if (!is_int($size)) {
-            throw new InvalidArgumentsException('Invalid size provided for UploadedFile; must be an int');
-        }
-        $this->size = $size;
+    /**
+     * @var int
+     */
+    private int $error;
 
-        if (!is_int($errorStatus)
-            || 0 > $errorStatus
-            || 8 < $errorStatus
-        ) {
-            throw new InvalidArgumentsException(
-                'Invalid error status for UploadedFile; must be an UPLOAD_ERR_* constant'
-            );
-        }
-        $this->error = $errorStatus;
+    /**
+     * @var string|null
+     */
+    private ?string $clientFilename;
 
-        if (null !== $clientFilename && !is_string($clientFilename)) {
-            throw new InvalidArgumentsException(
-                'Invalid client filename provided for UploadedFile; must be null or a string'
-            );
-        }
-        $this->clientFilename = $clientFilename;
+    /**
+     * @var string|null
+     */
+    private ?string $clientMediaType;
 
-        if (null !== $clientMediaType && !is_string($clientMediaType)) {
-            throw new InvalidArgumentsException(
-                'Invalid client media type provided for UploadedFile; must be null or a string'
-            );
-        }
+    /**
+     * @var bool
+     */
+    private bool $isMoved = false;
+
+    /**
+     * @param string|StreamInterface|resource $streamOrFile
+     * @param int                             $size
+     * @param int                             $error
+     * @param string|null                     $clientFilename
+     * @param string|null                     $clientMediaType
+     */
+    public function __construct(
+        $streamOrFile,
+        int $size,
+        int $error,
+        ?string $clientFilename = null,
+        ?string $clientMediaType = null
+    ) {
+        $this->checkErrors($error);
+
+        $this->size            = $size;
+        $this->error           = $error;
+        $this->clientFilename  = $clientFilename;
         $this->clientMediaType = $clientMediaType;
+
+        if ($error !== UPLOAD_ERR_OK) {
+            return;
+        }
+        $this->init($streamOrFile);
     }
 
     /**
-     * {@inheritdoc}
+     * @return StreamInterface
      */
-    public function getStream()
+    public function getStream(): StreamInterface
     {
-        if ($this->moved) {
-            throw new StreamException('Cannot retrieve stream after it has already been moved');
+        if ($this->error !== UPLOAD_ERR_OK) {
+            throw new RuntimeException(self::ERRORS[$this->error]);
         }
 
-        if ($this->stream instanceof StreamInterface) {
-            return $this->stream;
+        if ($this->isMoved) {
+            throw new RuntimeException('The stream is not available because it has been moved.');
         }
 
-        $this->stream = new Stream($this->file);
+        if ($this->stream === null) {
+            $this->stream = new Stream($this->file, 'r+');
+        }
+
         return $this->stream;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function moveTo($targetPath)
+    public function moveTo(string $targetPath): void
     {
-        if (!is_string($targetPath)) {
-            throw new InvalidArgumentsException(
-                'Invalid path provided for move operation; must be a string'
-            );
+        if ($this->error !== UPLOAD_ERR_OK) {
+            throw new RuntimeException(self::ERRORS[$this->error]);
+        }
+
+        if ($this->isMoved) {
+            throw new RuntimeException('The file cannot be moved because it has already been moved.');
         }
 
         if (empty($targetPath)) {
-            throw new InvalidArgumentsException(
-                'Invalid path provided for move operation; must be a non-empty string'
-            );
+            throw new InvalidArgumentException('Target path is not valid for move. It must be a non-empty string.');
         }
 
-        if ($this->moved) {
-            throw new UploadedFileException('Cannot move file; already moved!');
+        $targetDirectory = dirname($targetPath);
+
+        if (!is_dir($targetDirectory) || !is_writable($targetDirectory)) {
+            throw new RuntimeException(sprintf(
+                'The target directory "%s" does not exist or is not writable.',
+                $targetDirectory
+            ));
         }
 
-        $sapi = PHP_SAPI;
-        switch (true) {
-            case (empty($sapi) || 0 === strpos($sapi, 'cli') || !$this->file):
-                // Non-SAPI environment, or no filename present
-                $this->writeFile($targetPath);
-                break;
-            default:
-                // SAPI environment, with file present
-                if (false === move_uploaded_file($this->file, $targetPath)) {
-                    throw new UploadedFileException('Error occurred while moving uploaded file');
-                }
-                break;
-        }
-
-        $this->moved = true;
+        $this->moveOrWriteFile($targetPath);
+        $this->isMoved = true;
     }
 
-    /**
-     * {@inheritdoc}
-     *
-     * @return int|null The file size in bytes or null if unknown.
-     */
-    public function getSize()
+    public function getSize(): ?int
     {
         return $this->size;
     }
 
-    /**
-     * {@inheritdoc}
-     *
-     * @see http://php.net/manual/en/features.file-upload.errors.php
-     * @return int One of PHP's UPLOAD_ERR_XXX constants.
-     */
-    public function getError()
+    public function getError(): int
     {
         return $this->error;
     }
 
-    /**
-     * {@inheritdoc}
-     *
-     * @return string|null The filename sent by the client or null if none
-     *     was provided.
-     */
-    public function getClientFilename()
+    public function getClientFilename(): ?string
     {
         return $this->clientFilename;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getClientMediaType()
+    public function getClientMediaType(): ?string
     {
         return $this->clientMediaType;
     }
 
     /**
-     * Write internal stream to given path
+     * Moves if used in an SAPI environment where $_FILES is populated, when writing
+     * files via is_uploaded_file() and move_uploaded_file() or writes If SAPI is not used.
      *
-     * @param string $path
+     * @param string $targetPath
      */
-    private function writeFile($path)
+    private function moveOrWriteFile(string $targetPath): void
     {
-        $handle = fopen($path, 'wb+');
-        if (false === $handle) {
-            throw new UploadedFileException('Unable to write to designated path');
+        if ($this->file !== null) {
+            $isCliEnv = (!PHP_SAPI || str_starts_with(PHP_SAPI, 'cli') || str_starts_with(PHP_SAPI, 'phpdbg'));
+
+            if (!($isCliEnv ? rename($this->file, $targetPath) : move_uploaded_file($this->file, $targetPath))) {
+                throw new RuntimeException(sprintf('Uploaded file could not be moved to "%s".', $targetPath));
+            }
+
+            return;
+        }
+        $file = fopen($targetPath, 'wb+');
+        if (!$file) {
+            throw new RuntimeException(sprintf('Unable to write to "%s".', $targetPath));
         }
 
         $this->stream->rewind();
+
         while (!$this->stream->eof()) {
-            fwrite($handle, $this->stream->read(4096));
+            fwrite($file, $this->stream->read(512000));
         }
 
-        fclose($handle);
+        fclose($file);
+    }
+
+    private function checkErrors(int $error): void
+    {
+        if (!array_key_exists($error, self::ERRORS)) {
+            throw new InvalidArgumentException(sprintf(
+                '"%s" is not valid error status for "UploadedFile". It must be one of "UPLOAD_ERR_*" constants:  "%s".',
+                $error,
+                implode('", "', array_keys(self::ERRORS))
+            ));
+        }
+
+    }
+
+    /**
+     * @param string|StreamInterface|resource $streamOrFile
+     *
+     * @return void
+     */
+    private function init($streamOrFile): void
+    {
+        switch ($streamOrFile) {
+            case is_string($streamOrFile):
+                $this->file = $streamOrFile;
+
+                break;
+            case is_resource($streamOrFile):
+                $this->stream = new Stream($streamOrFile);
+
+                break;
+            case $streamOrFile instanceof StreamInterface:
+                $this->stream = $streamOrFile;
+
+                break;
+
+            default: throw new InvalidArgumentException(sprintf(
+                '"%s" is not valid stream or file provided for "UploadedFile".',
+                is_object($streamOrFile) ? get_class($streamOrFile) : gettype($streamOrFile)
+            ));
+
+        }
+
     }
 }

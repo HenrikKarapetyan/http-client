@@ -1,76 +1,33 @@
 <?php
-/**
- * Copyright (c)  2016
- * Author  Henrik Karapetyan
- * Email:  henrikkarapetyan@gmail.com
- * Country: Armenia
- * File created:  2019/9/8  10:42:1.
- */
 
-namespace henrik\http_client;
+declare(strict_types=1);
 
+namespace Henrik\HttpClient;
 
-use henrik\http_client\exceptions\InvalidArgumentsException;
+use Fig\Http\Message\RequestMethodInterface;
+use Henrik\HttpClient\Trait\RequestTrait;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Message\UriInterface;
 
-/**
- * HTTP Request encapsulation
- *
- * Requests are considered immutable; all methods that might change state are
- * implemented such that they retain the internal state of the current
- * message and return a new instance that contains the changed state.
- */
-class Request implements RequestInterface
+final class Request implements RequestInterface
 {
-    use MessageTrait, RequestTrait;
+    use RequestTrait;
 
     /**
-     * @param null|string $uri URI for the request, if any.
-     * @param null|string $method HTTP method for the request, if any.
-     * @param string|resource|StreamInterface $body Message body, if any.
-     * @param array $headers Headers for the message, if any.
-     * @throws InvalidArgumentsException for any invalid value.
+     * @param string                      $method
+     * @param string|UriInterface         $uri
+     * @param string[]                    $headers
+     * @param string|StreamInterface|null $body
+     * @param string                      $protocol
      */
-    public function __construct($uri = null, $method = null, $body = 'php://memory', array $headers = [])
-    {
-        $this->initialize($uri, $method, $body, $headers);
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getHeaders()
-    {
-        $headers = $this->headers;
-        if (!$this->hasHeader('host')
-            && ($this->uri && $this->uri->getHost())
-        ) {
-            $headers['Host'] = [$this->getHostFromUri()];
-        }
-
-        return $headers;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getHeader($header)
-    {
-        if (!$this->hasHeader($header)) {
-            if (strtolower($header) === 'host'
-                && ($this->uri && $this->uri->getHost())
-            ) {
-                return [$this->getHostFromUri()];
-            }
-
-            return [];
-        }
-
-        $header = $this->headerNames[strtolower($header)];
-
-        $value = $this->headers[$header];
-        $value = is_array($value) ? $value : [$value];
-        return $value;
+    public function __construct(
+        string $method = RequestMethodInterface::METHOD_GET,
+        string|UriInterface $uri = '',
+        array $headers = [],
+        null|StreamInterface|string $body = null,
+        string $protocol = '1.1'
+    ) {
+        $this->init($method, $uri, $headers, $body, $protocol);
     }
 }

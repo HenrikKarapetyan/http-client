@@ -1,296 +1,268 @@
 <?php
-/**
- * Copyright (c)  2016
- * Author  Henrik Karapetyan
- * Email:  henrikkarapetyan@gmail.com
- * Country: Armenia
- * File created:  2019/8/11  6:32:1.
- */
 
-namespace henrik\http_client;
+declare(strict_types=1);
 
-use henrik\http_client\exceptions\InvalidArgumentsException;
+namespace Henrik\HttpClient;
+
+use Fig\Http\Message\RequestMethodInterface;
+use Henrik\HttpClient\Trait\RequestTrait;
+use InvalidArgumentException;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Psr\Http\Message\UriInterface;
 
-/**
- * Server-side HTTP request
- *
- * Extends the Request definition to add methods for accessing incoming data,
- * specifically server parameters, cookies, matched path parameters, query
- * string arguments, body parameters, and upload file information.
- *
- * "Attributes" are discovered via decomposing the request (and usually
- * specifically the URI path), and typically will be injected by the application.
- *
- * Requests are considered immutable; all methods that might change state are
- * implemented such that they retain the internal state of the current
- * message and return a new instance that contains the changed state.
- */
-class ServerRequest implements ServerRequestInterface
+final class ServerRequest implements ServerRequestInterface
 {
-    use MessageTrait, RequestTrait;
+    use RequestTrait;
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
-    private $attributes;
+    private array $attributes = [];
 
     /**
-     * @var array
+     * @var array<int|string, mixed>
      */
-    private $cookieParams;
+    private array $cookieParams;
 
     /**
-     * @var array
+     * @var array<int|string, mixed>|object|null
      */
-    private $parsedBody;
+    private null|array|object $parsedBody;
 
     /**
-     * @var array
+     * @var array<int|string, mixed>
      */
-    private $queryParams;
+    private array $queryParams;
 
     /**
-     * @var array
+     * @var array<int|string, mixed>
      */
-    private $serverParams;
+    private array $serverParams;
 
     /**
-     * @var array
+     * @var array<string, array<UploadedFileInterface>|UploadedFileInterface|mixed>
      */
-    private $uploadedFiles;
+    private array $uploadedFiles;
 
     /**
-     * @param array $serverParams Server parameters, typically from $_SERVER
-     * @param array $uploadedFiles Upload file information, a tree of UploadedFiles
-     * @param null|string $uri URI for the request, if any.
-     * @param null|string $method HTTP method for the request, if any.
-     * @param string|resource|StreamInterface $body Message body, if any.
-     * @param array $headers Headers for the message, if any.
-     * @throws InvalidArgumentsException for any invalid value.
+     * @param array<int|string, mixed>                                                $serverParams
+     * @param array<string, array<UploadedFileInterface>|UploadedFileInterface|mixed> $uploadedFiles
+     * @param array<int|string, mixed>                                                $cookieParams
+     * @param array<int|string, mixed>                                                $queryParams
+     * @param object|array<int|string, mixed>|null                                    $parsedBody
+     * @param string                                                                  $method
+     * @param string|UriInterface                                                     $uri
+     * @param string[]                                                                $headers
+     * @param string|StreamInterface|null                                             $body
+     * @param string                                                                  $protocol
+     *
+     * @SuppressWarnings(PHPMD)
      */
     public function __construct(
         array $serverParams = [],
         array $uploadedFiles = [],
-        $uri = null,
-        $method = null,
-        $body = 'php://input',
-        array $headers = []
+        array $cookieParams = [],
+        array $queryParams = [],
+        null|array|object $parsedBody = null,
+        string $method = RequestMethodInterface::METHOD_GET,
+        string|UriInterface $uri = '',
+        array $headers = [],
+        null|StreamInterface|string $body = null,
+        string $protocol = '1.1'
     ) {
         $this->validateUploadedFiles($uploadedFiles);
-
-        $body = $this->getStream($body);
-        $this->initialize($uri, $method, $body, $headers);
-        $this->serverParams  = $serverParams;
         $this->uploadedFiles = $uploadedFiles;
+        $this->serverParams  = $serverParams;
+        $this->cookieParams  = $cookieParams;
+        $this->queryParams   = $queryParams;
+        $this->parsedBody    = $parsedBody;
+        $this->init($method, $uri, $headers, $body, $protocol);
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @return array<int|string, mixed>
      */
-    public function getServerParams()
+    public function getServerParams(): array
     {
         return $this->serverParams;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @return array<int|string, mixed>
      */
-    public function getUploadedFiles()
-    {
-        return $this->uploadedFiles;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function withUploadedFiles(array $uploadedFiles)
-    {
-        $this->validateUploadedFiles($uploadedFiles);
-        $new = clone $this;
-        $new->uploadedFiles = $uploadedFiles;
-        return $new;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function getCookieParams()
+    public function getCookieParams(): array
     {
         return $this->cookieParams;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @param array<int|string, mixed> $cookies
+     *
+     * @return ServerRequestInterface
      */
-    public function withCookieParams(array $cookies)
+    public function withCookieParams(array $cookies): ServerRequestInterface
     {
-        $new = clone $this;
+        $new               = clone $this;
         $new->cookieParams = $cookies;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @return array<int|string, mixed> $cookies
      */
-    public function getQueryParams()
+    public function getQueryParams(): array
     {
         return $this->queryParams;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @param array<int|string, mixed> $query
      */
-    public function withQueryParams(array $query)
+    public function withQueryParams(array $query): ServerRequestInterface
     {
-        $new = clone $this;
+        $new              = clone $this;
         $new->queryParams = $query;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @return array<string, array<UploadedFileInterface>|UploadedFileInterface|mixed>
      */
-    public function getParsedBody()
+    public function getUploadedFiles(): array
+    {
+        return $this->uploadedFiles;
+    }
+
+    /**
+     * @param array<string, array<UploadedFileInterface>|UploadedFileInterface|mixed> $uploadedFiles
+     */
+    public function withUploadedFiles(array $uploadedFiles): ServerRequestInterface
+    {
+        $this->validateUploadedFiles($uploadedFiles);
+        $new                = clone $this;
+        $new->uploadedFiles = $uploadedFiles;
+
+        return $new;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return array<int|string, mixed>|object|null
+     */
+    public function getParsedBody(): null|array|object
     {
         return $this->parsedBody;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @param mixed $data
      */
-    public function withParsedBody($data)
+    public function withParsedBody($data): ServerRequestInterface
     {
-        $new = clone $this;
+        if (!is_array($data) && !is_object($data) && $data !== null) {
+            throw new InvalidArgumentException(sprintf(
+                '"%s" is not valid Parsed Body. It must be a null, an array, or an object.',
+                gettype($data)
+            ));
+        }
+
+        $new             = clone $this;
         $new->parsedBody = $data;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
+     *
+     * @return array<string, mixed>
      */
-    public function getAttributes()
+    public function getAttributes(): array
     {
         return $this->attributes;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function getAttribute($attribute, $default = null)
+    public function getAttribute($name, $default = null)
     {
-        if (! array_key_exists($attribute, $this->attributes)) {
-            return $default;
+        if (array_key_exists($name, $this->attributes)) {
+            return $this->attributes[$name];
         }
 
-        return $this->attributes[$attribute];
+        return $default;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withAttribute($attribute, $value)
+    public function withAttribute($name, $value): ServerRequestInterface
     {
-        $new = clone $this;
-        $new->attributes[$attribute] = $value;
+        if (array_key_exists($name, $this->attributes) && $this->attributes[$name] === $value) {
+            return $this;
+        }
+
+        $new                    = clone $this;
+        $new->attributes[$name] = $value;
+
         return $new;
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
-    public function withoutAttribute($attribute)
+    public function withoutAttribute($name): ServerRequestInterface
     {
-        if (! isset($this->attributes[$attribute])) {
-            return clone $this;
+        if (!array_key_exists($name, $this->attributes)) {
+            return $this;
         }
 
         $new = clone $this;
-        unset($new->attributes[$attribute]);
+        unset($new->attributes[$name]);
+
         return $new;
     }
 
     /**
-     * Proxy to receive the request method.
+     * @param array<string, array<UploadedFileInterface>|UploadedFileInterface|mixed> $uploadedFiles
      *
-     * This overrides the parent functionality to ensure the method is never
-     * empty; if no method is present, it returns 'GET'.
-     *
-     * @return string
+     * @throws InvalidArgumentException
      */
-    public function getMethod()
-    {
-        if (empty($this->method)) {
-            return 'GET';
-        }
-        return $this->method;
-    }
-
-    /**
-     * Set the request method.
-     *
-     * Unlike the regular Request implementation, the server-side
-     * normalizes the method to uppercase to ensure consistency
-     * and make checking the method simpler.
-     *
-     * This methods returns a new instance.
-     *
-     * @param string $method
-     * @return self
-     */
-    public function withMethod($method)
-    {
-        $this->validateMethod($method);
-        $new = clone $this;
-        $new->method = $method;
-        return $new;
-    }
-
-    /**
-     * Set the body stream
-     *
-     * @param string|resource|StreamInterface $stream
-     * @return StreamInterface|resource|string
-     */
-    private function getStream($stream)
-    {
-        if ($stream === 'php://input') {
-            return new PhpInputStream();
-        }
-
-        if (! is_string($stream) && ! is_resource($stream) && ! $stream instanceof StreamInterface) {
-            throw new InvalidArgumentsException(
-                'Stream must be a string stream resource identifier, '
-                . 'an actual stream resource, '
-                . 'or a Psr\Http\Message\StreamInterface implementation'
-            );
-        }
-
-        if (! $stream instanceof StreamInterface) {
-            return new Stream($stream, 'r');
-        }
-
-        return $stream;
-    }
-
-    /**
-     * Recursively validate the structure in an uploaded files array.
-     *
-     * @param array $uploadedFiles
-     * @throws InvalidArgumentsException if any leaf is not an UploadedFileInterface instance.
-     */
-    private function validateUploadedFiles(array $uploadedFiles)
+    private function validateUploadedFiles(array $uploadedFiles): void
     {
         foreach ($uploadedFiles as $file) {
             if (is_array($file)) {
                 $this->validateUploadedFiles($file);
+
                 continue;
             }
 
-            if (! $file instanceof UploadedFileInterface) {
-                throw new InvalidArgumentsException('Invalid leaf in uploaded files structure');
+            if (!$file instanceof UploadedFileInterface) {
+                throw new InvalidArgumentException(sprintf(
+                    'Invalid item in uploaded files structure.'
+                    . '"%s" is not an instance of "\Psr\Http\Message\UploadedFileInterface".',
+                    is_object($file) ? get_class($file) : gettype($file)
+                ));
             }
         }
     }
